@@ -26,6 +26,17 @@ describe Firebase::Admin::Auth::Client do
     end
   end
 
+  describe "#create_custom_token" do
+    it "delegates to CustomTokenGenerator" do
+      client = Firebase::Admin::Auth::Client.new(@app)
+      generator = instance_double(Firebase::Admin::Auth::CustomTokenGenerator)
+      allow(Firebase::Admin::Auth::CustomTokenGenerator).to receive(:new).with(@app).and_return(generator)
+      allow(generator).to receive(:create_custom_token).with("uid-1", {a: 1}).and_return("token")
+
+      expect(client.create_custom_token("uid-1", {a: 1})).to eq("token")
+    end
+  end
+
   describe "#create_session_cookie" do
     before do
       stub_auth_request(:post, "/createSessionCookie")

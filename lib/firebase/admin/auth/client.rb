@@ -7,6 +7,7 @@ module Firebase
         #
         # @param [Firebase::Admin::App] app The app the client is configured with.
         def initialize(app)
+          @app = app
           @project_id = app.project_id
           @service_account_id = app.service_account_id
           @credentials = app.credentials
@@ -115,6 +116,15 @@ module Firebase
         # @return [UserRecord]
         def set_custom_user_claims(uid, custom_claims)
           @user_manager.set_custom_user_claims(uid, custom_claims)
+        end
+
+        # Creates a custom token for the specified uid with optional custom claims.
+        #
+        # @param [String] uid The id of the user.
+        # @param [Hash,nil] claims Optional custom claims to include.
+        # @return [String] A signed JWT representing the custom token.
+        def create_custom_token(uid, claims = nil)
+          CustomTokenGenerator.new(@app).create_custom_token(uid, claims)
         end
 
         private

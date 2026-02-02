@@ -1,4 +1,5 @@
 {
   "projectId": "test-adminsdk-project-config",
-  "serviceAccountId": "test_service_account_id"
+  "serviceAccountId": "test_service_account_id",
+  "databaseURL": "https://test-adminsdk-project-config.firebaseio.com"
 }

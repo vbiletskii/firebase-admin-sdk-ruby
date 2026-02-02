@@ -43,6 +43,43 @@ creds = Firebase::Admin::Credentials.from_file('service_account.json')
 app = Firebase::Admin::App.new(credentials: creds)
 ```
 
+### Realtime Database (REST API)
+
+This SDK includes a small wrapper around the Firebase Realtime Database REST API.
+See the REST reference at https://firebase.google.com/docs/reference/rest/database/.
+
+To use it you must provide a Realtime Database URL via `FIREBASE_CONFIG` (key: `databaseURL`)
+or by constructing a `Firebase::Admin::Config` with `database_url:`.
+
+```ruby
+ENV["FIREBASE_CONFIG"] = {
+  projectId: "my-project",
+  databaseURL: "https://my-project-default-rtdb.firebaseio.com"
+}.to_json
+
+app = Firebase::Admin::App.new
+
+# read
+res = app.database.get("todos", query: {orderBy: "created", limitToFirst: 1})
+puts res.body
+
+# write
+app.database.set("todos/first", {name: "Pick the milk"})
+
+# push
+push_res = app.database.push("todos", {name: "Pick the milk"})
+puts push_res.body["name"]
+
+# update
+app.database.update("todos/first", {done: true})
+
+# delete
+app.database.delete("todos/first")
+
+# server timestamp
+app.database.set("todos/first", {createdAt: Firebase::Admin::Database::ServerValue::TIMESTAMP})
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/cheddar-me/firebase-admin-sdk.

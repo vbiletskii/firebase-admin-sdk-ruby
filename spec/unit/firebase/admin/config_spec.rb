@@ -4,12 +4,14 @@ describe Firebase::Admin::Config do
   it "should load from a file path" do
     config = Firebase::Admin::Config.from_file(fixture("config.json").path)
     expect(config.project_id).to eq("test-adminsdk-project-config")
+    expect(config.database_url).to eq("https://test-adminsdk-project-config.firebaseio.com")
   end
 
   it "should load from a file using the FIREBASE_CONFIG env" do
     ClimateControl.modify(FIREBASE_CONFIG: fixture("config.json").path) do
       config = Firebase::Admin::Config.from_env
       expect(config.project_id).to eq("test-adminsdk-project-config")
+      expect(config.database_url).to eq("https://test-adminsdk-project-config.firebaseio.com")
     end
   end
 
@@ -17,6 +19,7 @@ describe Firebase::Admin::Config do
     ClimateControl.modify(FIREBASE_CONFIG: fixture("config.json").read) do
       config = Firebase::Admin::Config.from_env
       expect(config.project_id).to eq("test-adminsdk-project-config")
+      expect(config.database_url).to eq("https://test-adminsdk-project-config.firebaseio.com")
     end
   end
 end

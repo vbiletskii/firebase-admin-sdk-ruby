@@ -9,7 +9,7 @@ module Firebase
   module Admin
     # An App holds configuration and state common to all Firebase services that are exposed from the SDK.
     class App
-      attr_reader :project_id, :service_account_id, :credentials
+      attr_reader :project_id, :service_account_id, :database_url, :credentials
 
       # Constructs a new App.
       #
@@ -22,6 +22,7 @@ module Firebase
         @credentials = credentials || Credentials.from_default
         @service_account_id = @config.service_account_id
         @project_id = @config.project_id || @credentials.project_id
+        @database_url = @config.database_url
       end
     end
   end

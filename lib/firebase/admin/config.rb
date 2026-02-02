@@ -7,7 +7,7 @@ module Firebase
 
     # Configuration options used to initialize an App.
     class Config
-      attr_reader :project_id, :service_account_id
+      attr_reader :project_id, :service_account_id, :database_url
 
       class << self
         # Loads a configuration using the FIREBASE_CONFIG environment variable.
@@ -44,15 +44,17 @@ module Firebase
           data = JSON.parse(json)
           new(
             project_id: data["projectId"],
-            service_account_id: data["serviceAccountId"]
+            service_account_id: data["serviceAccountId"],
+            database_url: data["databaseURL"]
           )
         end
       end
 
       # Initializes the configuration object.
-      def initialize(project_id: nil, service_account_id: nil)
+      def initialize(project_id: nil, service_account_id: nil, database_url: nil)
         @project_id = project_id
         @service_account_id = service_account_id
+        @database_url = database_url
       end
     end
   end

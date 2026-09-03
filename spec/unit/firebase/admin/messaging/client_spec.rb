@@ -165,6 +165,86 @@ describe Firebase::Admin::Messaging::Client do
     end
   end
 
+  describe "#send_each" do
+    let(:tokens) { %w[token-a token-b token-c] }
+    let(:messages) do
+      tokens.map do |token|
+        Firebase::Admin::Messaging::Message.new(
+          token: token,
+          notification: Firebase::Admin::Messaging::Notification.new(title: "test", body: "this is a test")
+        )
+      end
+    end
+    let(:send_url) { "https://fcm.googleapis.com/v1/projects/test-adminsdk-project/messages:send" }
+
+    context "when every message sends successfully" do
+      before do
+        stub_request(:post, send_url).to_return(
+          status: 200,
+          body: fixture("messaging/send_one.json").read,
+          headers: {content_type: "application/json; charset=utf-8"}
+        )
+      end
+
+      it "sends one request per message and reports every message as successful" do
+        response = @app.messaging.send_each(messages)
+
+        expect(response.success_count).to eq(3)
+        expect(response.failure_count).to eq(0)
+        expect(a_request(:post, send_url)).to have_been_made.times(3)
+      end
+    end
+
+    context "when one message fails" do
+      before do
+        stub_request(:post, send_url).with(body: /token-b/).to_return(
+          status: 404,
+          body: fixture("messaging/unregistered_error.json").read,
+          headers: {content_type: "application/json; charset=utf-8"}
+        )
+        stub_request(:post, send_url).with(body: /token-a|token-c/).to_return(
+          status: 200,
+          body: fixture("messaging/send_one.json").read,
+          headers: {content_type: "application/json; charset=utf-8"}
+        )
+      end
+
+      it "isolates the failure without affecting the other messages" do
+        response = @app.messaging.send_each(messages)
+
+        expect(response.success_count).to eq(2)
+        expect(response.failure_count).to eq(1)
+
+        failed = response.responses.find { |result| !result.success? }
+        expect(failed.error).to be_a(Firebase::Admin::Messaging::UnregisteredError)
+      end
+    end
+
+    it "raises when given more than 500 messages" do
+      too_many_messages = Array.new(501) { messages.first }
+
+      expect { @app.messaging.send_each(too_many_messages) }.to raise_error(/must not contain more than 500/)
+    end
+  end
+
+  describe "#send_each_for_multicast" do
+    it "sends the multicast message to every token individually" do
+      stub_request(:post, "https://fcm.googleapis.com/v1/projects/test-adminsdk-project/messages:send").to_return(
+        status: 200,
+        body: fixture("messaging/send_one.json").read,
+        headers: {content_type: "application/json; charset=utf-8"}
+      )
+      multicast_message = Firebase::Admin::Messaging::MulticastMessage.new(
+        tokens: %w[token-a token-b],
+        notification: Firebase::Admin::Messaging::Notification.new(title: "test", body: "this is a test")
+      )
+
+      response = @app.messaging.send_each_for_multicast(multicast_message)
+
+      expect(response.success_count).to eq(2)
+    end
+  end
+
   describe "#subscribe_to_topic" do
     it "should return a topic management response" do
       stub_topic_request("batchAdd", "messaging/subscribe.json")

@@ -33,6 +33,10 @@ module Firebase
 
         # Sends the given list of messages via Firebase Cloud Messaging (FCM) as a single batch.
         #
+        # @deprecated FCM retired the HTTP batch endpoint this method depends on
+        #   on 2024-06-21; calls now fail with a generic "Invalid request" error.
+        #   Use {#send_each} instead.
+        #
         # If the `dry_run` flag is set, the messages will not be actually delivered to the recipients.
         # Instead FCM performs all the usual validations, and emulates the send operation.
         #
@@ -60,6 +64,9 @@ module Firebase
 
         # Sends the given multicast message to all tokens via Firebase Cloud Messaging (FCM).
         #
+        # @deprecated Built on {#send_all}, which FCM's retired batch endpoint breaks
+        #   (see its deprecation note). Use {#send_each_for_multicast} instead.
+        #
         # If the `dry_run` flag is set, the message will not be actually delivered to the recipients.
         # Instead FCM performs all the usual validations, and emulates the send operation.
         #
@@ -79,6 +86,54 @@ module Firebase
             )
           end
           send_all(messages, dry_run: dry_run)
+        end
+
+        # Sends the given list of messages via Firebase Cloud Messaging (FCM), one request
+        # per message, running up to `concurrency` requests at a time. Use this instead of
+        # {#send_all}, which depends on FCM's retired HTTP batch endpoint.
+        #
+        # If the `dry_run` flag is set, the messages will not be actually delivered to the recipients.
+        # Instead FCM performs all the usual validations, and emulates the send operation.
+        #
+        # @param [Array<Message>] messages An array of messages to send.
+        # @param [Boolean] dry_run A flag indicating whether to run the operation in dry run mode.
+        # @param [Integer] concurrency Maximum number of requests to have in flight at once.
+        #
+        # @return [BatchResponse] A batch response.
+        def send_each(messages, dry_run: false, concurrency: 10)
+          raise "messages must be an Array" unless messages.is_a?(Array)
+          raise "messages must not contain more than 500 elements" unless messages.length <= 500
+
+          responses = messages.each_slice(concurrency).flat_map do |batch|
+            batch.map { |message| Thread.new { send_each_one(message, dry_run: dry_run) } }.map(&:value)
+          end
+
+          BatchResponse.new(responses: responses)
+        end
+
+        # Sends the given multicast message to all tokens via Firebase Cloud Messaging (FCM),
+        # using {#send_each} instead of the retired HTTP batch endpoint.
+        #
+        # If the `dry_run` flag is set, the message will not be actually delivered to the recipients.
+        # Instead FCM performs all the usual validations, and emulates the send operation.
+        #
+        # @param [MulticastMessage] multicast_message A multicast message to send.
+        # @param [Boolean] dry_run A flag indicating whether to run the operation in dry run mode.
+        # @param [Integer] concurrency Maximum number of requests to have in flight at once.
+        #
+        # @return [BatchResponse] A batch response.
+        def send_each_for_multicast(multicast_message, dry_run: false, concurrency: 10)
+          messages = multicast_message.tokens.map do |token|
+            Message.new(
+              token: token,
+              data: multicast_message.data,
+              notification: multicast_message.notification,
+              android: multicast_message.android,
+              apns: multicast_message.apns,
+              fcm_options: multicast_message.fcm_options
+            )
+          end
+          send_each(messages, dry_run: dry_run, concurrency: concurrency)
         end
 
         # Subscribes a list of registration tokens to an FCM topic.
@@ -102,6 +157,13 @@ module Firebase
         end
 
         private
+
+        # @return [SendResponse] The outcome of sending a single message, for use in {#send_each}.
+        def send_each_one(message, dry_run:)
+          SendResponse.new(message_id: send_one(message, dry_run: dry_run), error: nil)
+        rescue => e
+          SendResponse.new(message_id: nil, error: e)
+        end
 
         # @return [String] The firebase cloud messaging send endpoint url.
         def send_url

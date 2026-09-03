@@ -20,7 +20,7 @@ module Firebase
         # @param [Array<SendResponse>] responses
         def initialize(responses:)
           @responses = responses
-          @success_count = responses.count(:success?)
+          @success_count = responses.count(&:success?)
           @failure_count = responses.count - @success_count
         end
       end
